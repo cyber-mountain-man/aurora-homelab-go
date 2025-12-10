@@ -1,0 +1,9 @@
+body {
+    background: radial-gradient(circle at top, #1f2933 0, #020617 55%, #000 100%);
+    min-height: 100vh;
+}
+
+.aurora-tile {
+    border-radius: 1rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}

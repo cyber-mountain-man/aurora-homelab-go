@@ -1,0 +1,20 @@
+# Aurora Homelab example configuration.
+# In a later milestone, the app will read config.yaml and use it
+# to render service tiles and run health checks.
+
+services:
+  - name: Proxmox
+    url: https://proxmox.local
+    icon: proxmox
+    category: Infrastructure
+    description: Virtualization host
+  - name: TrueNAS
+    url: https://truenas.local
+    icon: truenas
+    category: Storage
+    description: NAS and backups
+  - name: Plex
+    url: http://plex.local:32400
+    icon: plex
+    category: Media
+    description: Media server

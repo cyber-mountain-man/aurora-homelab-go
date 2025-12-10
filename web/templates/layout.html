@@ -1,0 +1,34 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>{{.Title}}</title>
+
+    <!-- Bulma CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css" />
+
+    <!-- HTMX (for live updates later) -->
+    <script src="https://unpkg.com/htmx.org@2.0.2"></script>
+
+    <link rel="stylesheet" href="/static/css/custom.css" />
+</head>
+
+<body class="has-background-dark">
+    <section class="section">
+        <div class="container">
+            <h1 class="title has-text-white">
+                Aurora Homelab
+            </h1>
+            <h2 class="subtitle has-text-grey-light">
+                Go-powered homelab dashboard (MVP skeleton)
+            </h2>
+
+            {{template "dashboard" .}}
+        </div>
+    </section>
+</body>
+
+</html>
+{{end}}
