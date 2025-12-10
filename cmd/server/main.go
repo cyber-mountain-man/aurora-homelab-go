@@ -45,6 +45,7 @@ func main() {
 	}
 
 	mux.HandleFunc("/", dh.Dashboard)
+	mux.HandleFunc("/dashboard/partial", dh.DashboardPartial)
 
 	log.Printf("Aurora Homelab listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {

@@ -9,7 +9,7 @@
     <!-- Bulma CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css" />
 
-    <!-- HTMX (for live updates later) -->
+    <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@2.0.2"></script>
 
     <link rel="stylesheet" href="/static/css/custom.css" />
@@ -18,6 +18,8 @@
 <body class="has-background-dark">
     <section class="section">
         <div class="container">
+
+            <!-- ✅ Headings stay static, not replaced by HTMX -->
             <h1 class="title has-text-white">
                 Aurora Homelab
             </h1>
@@ -25,7 +27,12 @@
                 Go-powered homelab dashboard (MVP skeleton)
             </h2>
 
-            {{template "dashboard" .}}
+            <!-- ✅ Only this part is dynamically swapped by HTMX -->
+            <div id="service-grid" hx-get="/dashboard/partial" hx-trigger="load, every 15s" hx-target="#service-grid"
+                hx-swap="innerHTML">
+                {{template "dashboard" .}}
+            </div>
+
         </div>
     </section>
 </body>

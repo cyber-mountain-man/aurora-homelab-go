@@ -48,8 +48,8 @@ type viewData struct {
 	Services []ServiceView
 }
 
-// Dashboard renders the main dashboard page.
-func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
+// buildViewData creates the view model from services + health results.
+func (h *DashboardHandler) buildViewData() viewData {
 	results := h.checker.Snapshot()
 
 	views := make([]ServiceView, 0, len(h.services))
@@ -71,13 +71,32 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		views = append(views, v)
 	}
 
-	data := viewData{
+	return viewData{
 		Title:    "Aurora Homelab",
 		Services: views,
 	}
+}
+
+// Dashboard renders the main dashboard page with the full layout.
+func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
+	data := h.buildViewData()
 
 	if err := h.tmpl.ExecuteTemplate(w, "layout", data); err != nil {
 		log.Printf("error rendering dashboard: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+}
+
+// DashboardPartial renders ONLY the tiles (no layout) for HTMX polling.
+func (h *DashboardHandler) DashboardPartial(w http.ResponseWriter, r *http.Request) {
+	data := h.buildViewData()
+
+	// Optional: explicitly set content type
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if err := h.tmpl.ExecuteTemplate(w, "dashboard", data); err != nil {
+		log.Printf("error rendering dashboard partial: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
