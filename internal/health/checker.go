@@ -1,8 +1,6 @@
 package health
 
 import (
-	"io"
-	"net/http"
 	"sync"
 	"time"
 
@@ -28,25 +26,37 @@ type Result struct {
 	Error       string // optional: last error message
 }
 
+// Backend defines a pluggable health check implementation.
+// Different backends can check HTTP, TCP, ICMP, etc.
+type Backend interface {
+	Check(svc models.Service) Result
+}
+
 // Checker periodically checks the health of configured services.
 type Checker struct {
 	mu       sync.RWMutex
 	results  map[string]Result
 	services []models.Service
-	client   *http.Client
+
+	backends map[string]Backend
+
 	interval time.Duration
 }
 
 // NewChecker creates a new Checker.
 // interval: how often to run checks (e.g., 30s)
-// timeout: HTTP timeout per request (e.g., 3s)
-func NewChecker(services []models.Service, interval, timeout time.Duration) *Checker {
+// httpTimeout: HTTP timeout per request (e.g., 3s)
+// tcpTimeout: TCP dial timeout (e.g., 2s)
+func NewChecker(services []models.Service, interval, httpTimeout, tcpTimeout time.Duration) *Checker {
+	backends := map[string]Backend{
+		"http": newHTTPBackend(httpTimeout),
+		"tcp":  newTCPBackend(tcpTimeout),
+	}
+
 	return &Checker{
 		results:  make(map[string]Result),
 		services: services,
-		client: &http.Client{
-			Timeout: timeout,
-		},
+		backends: backends,
 		interval: interval,
 	}
 }
@@ -54,7 +64,6 @@ func NewChecker(services []models.Service, interval, timeout time.Duration) *Che
 // Start begins periodic health checks in a background goroutine.
 // It also runs one initial check immediately.
 func (c *Checker) Start() {
-	// Run an initial round so we don't start with all UNKNOWN.
 	c.checkAll()
 
 	go func() {
@@ -75,38 +84,22 @@ func (c *Checker) checkAll() {
 	}
 }
 
-// checkOne performs a single HTTP health check for a service.
+// getBackend returns the backend for a given service type.
+// Defaults to HTTP if type is empty or unknown.
+func (c *Checker) getBackend(svcType string) Backend {
+	if svcType == "" {
+		svcType = "http"
+	}
+	if b, ok := c.backends[svcType]; ok {
+		return b
+	}
+	return c.backends["http"]
+}
+
+// checkOne performs a single health check using the appropriate backend.
 func (c *Checker) checkOne(svc models.Service) {
-	start := time.Now()
-
-	res := Result{
-		ServiceName: svc.Name,
-		URL:         svc.URL,
-		Status:      StatusUnknown,
-		CheckedAt:   time.Now(),
-	}
-
-	resp, err := c.client.Get(svc.URL)
-	if err != nil {
-		res.Status = StatusDown
-		res.Error = err.Error()
-		c.storeResult(res)
-		return
-	}
-	defer resp.Body.Close()
-	// Drain the body so the connection can be reused.
-	_, _ = io.Copy(io.Discard, resp.Body)
-
-	res.Latency = time.Since(start)
-	res.CheckedAt = time.Now()
-
-	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-		res.Status = StatusUp
-	} else {
-		res.Status = StatusDown
-		res.Error = resp.Status
-	}
-
+	backend := c.getBackend(svc.Type)
+	res := backend.Check(svc)
 	c.storeResult(res)
 }
 
@@ -118,7 +111,6 @@ func (c *Checker) storeResult(res Result) {
 }
 
 // Snapshot returns a copy of the last known results map.
-// The copy avoids data races in callers.
 func (c *Checker) Snapshot() map[string]Result {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

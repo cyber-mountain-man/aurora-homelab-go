@@ -29,7 +29,13 @@ func main() {
 	}
 
 	// Health checker: run every 30s, 3s timeout per service.
-	checker := health.NewChecker(cfg.Services, 30*time.Second, 3*time.Second)
+	checker := health.NewChecker(
+		cfg.Services,
+		30*time.Second, // interval
+		3*time.Second,  // HTTP timeout
+		2*time.Second,  // TCP timeout
+	)
+
 	checker.Start()
 
 	mux := http.NewServeMux()

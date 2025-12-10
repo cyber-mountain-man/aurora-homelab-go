@@ -29,9 +29,15 @@
             </p>
             {{end}}
 
+            {{if .URL}}
             <a class="button is-small is-info is-light mt-2" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
                 Open
             </a>
+            {{else}}
+            <button class="button is-small is-static mt-2">
+                No UI
+            </button>
+            {{end}}
 
             {{if .Category}}
             <span class="tag is-light mt-2">{{.Category}}</span>

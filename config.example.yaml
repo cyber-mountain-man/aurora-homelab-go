@@ -4,17 +4,30 @@
 
 services:
   - name: Proxmox
-    url: https://proxmox.local
+    type: tcp
+    host: proxmox.local
+    port: 8006
     icon: proxmox
     category: Infrastructure
-    description: Virtualization host
+    description: Virtualization host (TCP check on web UI port)
+
   - name: TrueNAS
-    url: https://truenas.local
+    type: tcp
+    host: truenas.local
+    port: 22
     icon: truenas
     category: Storage
-    description: NAS and backups
+    description: NAS SSH port check
+
   - name: Plex
+    type: http
     url: http://plex.local:32400
     icon: plex
     category: Media
-    description: Media server
+    description: Plex web UI
+
+  - name: Google
+    type: http
+    url: https://www.google.com
+    category: Test
+    description: Always-up external check
