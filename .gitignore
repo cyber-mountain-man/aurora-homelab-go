@@ -30,3 +30,6 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Aurora Homelab config (do NOT commit)
+config.yaml
