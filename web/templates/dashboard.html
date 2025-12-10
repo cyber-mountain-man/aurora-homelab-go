@@ -4,7 +4,16 @@
     {{range .Services}}
     <div class="column is-one-quarter">
         <div class="box aurora-tile">
-            <p class="title is-5">{{.Name}}</p>
+            <div class="level is-mobile mb-2">
+                <div class="level-left">
+                    <p class="title is-5 mb-0">{{.Name}}</p>
+                </div>
+                <div class="level-right">
+                    <span class="tag {{.StatusClass}}">
+                        {{.Status}}
+                    </span>
+                </div>
+            </div>
 
             {{if .Description}}
             <p class="subtitle is-6">{{.Description}}</p>
@@ -14,12 +23,18 @@
             </p>
             {{end}}
 
-            <a class="button is-small is-info is-light" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
+            {{if gt .LatencyMs 0}}
+            <p class="is-size-7 has-text-grey-light">
+                Latency: {{.LatencyMs}} ms
+            </p>
+            {{end}}
+
+            <a class="button is-small is-info is-light mt-2" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
                 Open
             </a>
 
             {{if .Category}}
-            <span class="tag is-dark is-light mt-2">{{.Category}}</span>
+            <span class="tag is-light mt-2">{{.Category}}</span>
             {{end}}
         </div>
     </div>

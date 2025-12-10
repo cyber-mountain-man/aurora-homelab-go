@@ -4,9 +4,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/cyber-mountain-man/aurora-homelab-go/internal/config"
 	"github.com/cyber-mountain-man/aurora-homelab-go/internal/handlers"
+	"github.com/cyber-mountain-man/aurora-homelab-go/internal/health"
 )
 
 func getEnv(key, fallback string) string {
@@ -23,9 +25,12 @@ func main() {
 	cfg, err := config.Load("config.yaml")
 	if err != nil {
 		log.Printf("warning: could not load config.yaml: %v", err)
-		// We'll still start, just with no services.
 		cfg = &config.Config{}
 	}
+
+	// Health checker: run every 30s, 3s timeout per service.
+	checker := health.NewChecker(cfg.Services, 30*time.Second, 3*time.Second)
+	checker.Start()
 
 	mux := http.NewServeMux()
 
@@ -33,8 +38,8 @@ func main() {
 	fileServer := http.FileServer(http.Dir("./web/static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
 
-	// Dashboard handler with services from config.
-	dh, err := handlers.NewDashboardHandler("./web/templates", cfg.Services)
+	// Dashboard handler with services + health checker.
+	dh, err := handlers.NewDashboardHandler("./web/templates", cfg.Services, checker)
 	if err != nil {
 		log.Fatalf("failed to initialize dashboard handler: %v", err)
 	}
