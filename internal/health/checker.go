@@ -51,6 +51,7 @@ func NewChecker(services []models.Service, interval, httpTimeout, tcpTimeout tim
 	backends := map[string]Backend{
 		"http": newHTTPBackend(httpTimeout),
 		"tcp":  newTCPBackend(tcpTimeout),
+		"dns":  newDNSBackend(httpTimeout), // reuse HTTP timeout for DNS
 	}
 
 	return &Checker{
