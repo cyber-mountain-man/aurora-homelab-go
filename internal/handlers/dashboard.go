@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"strings"
 
 	"github.com/cyber-mountain-man/aurora-homelab-go/internal/health"
 	"github.com/cyber-mountain-man/aurora-homelab-go/internal/models"
@@ -12,10 +13,14 @@ import (
 
 // ServiceView is what the template sees: service + health fields.
 type ServiceView struct {
-	models.Service // embedded; gives .Name, .URL, etc.
-	Status         health.Status
-	StatusClass    string // Bulma CSS class for tag color
-	LatencyMs      int64
+	Name        string
+	Description string
+	Category    string
+	URL         string
+	Status      string
+	StatusClass string
+	LatencyMs   int64
+	Protocol    string
 }
 
 // DashboardHandler holds compiled templates, services, and the health checker.
@@ -54,16 +59,19 @@ func (h *DashboardHandler) buildViewData() viewData {
 
 	views := make([]ServiceView, 0, len(h.services))
 	for _, svc := range h.services {
-		// Default view (UNKNOWN)
 		v := ServiceView{
-			Service:     svc,
-			Status:      health.StatusUnknown,
+			Name:        svc.Name,
+			Description: svc.Description,
+			Category:    svc.Category,
+			URL:         svc.URL,
+			Status:      string(health.StatusUnknown),
 			StatusClass: "is-dark",
 			LatencyMs:   0,
+			Protocol:    protocolLabel(svc.Type),
 		}
 
 		if res, ok := results[svc.Name]; ok {
-			v.Status = res.Status
+			v.Status = string(res.Status)
 			v.LatencyMs = res.Latency.Milliseconds()
 			v.StatusClass = bulmaClassForStatus(res.Status)
 		}
@@ -111,5 +119,24 @@ func bulmaClassForStatus(s health.Status) string {
 		return "is-danger"
 	default:
 		return "is-dark"
+	}
+}
+
+// protocolLabel maps a service type string to a display label.
+func protocolLabel(svcType string) string {
+	switch strings.ToLower(svcType) {
+	case "", "http":
+		return "HTTP"
+	case "tcp":
+		return "TCP"
+	case "dns":
+		return "DNS"
+	case "ping":
+		return "PING"
+	default:
+		if svcType == "" {
+			return ""
+		}
+		return strings.ToUpper(svcType)
 	}
 }

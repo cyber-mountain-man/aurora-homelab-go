@@ -39,9 +39,15 @@
             </button>
             {{end}}
 
-            {{if .Category}}
-            <span class="tag is-light mt-2">{{.Category}}</span>
-            {{end}}
+            <div class="mt-2">
+                {{if .Category}}
+                <span class="tag is-light">{{.Category}}</span>
+                {{end}}
+
+                {{if .Protocol}}
+                <span class="tag is-link is-light">{{.Protocol}}</span>
+                {{end}}
+            </div>
         </div>
     </div>
     {{end}}
