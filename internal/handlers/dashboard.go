@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cyber-mountain-man/aurora-homelab-go/internal/health"
 	"github.com/cyber-mountain-man/aurora-homelab-go/internal/models"
@@ -13,14 +14,17 @@ import (
 
 // ServiceView is what the template sees: service + health fields.
 type ServiceView struct {
-	Name        string
-	Description string
-	Category    string
-	URL         string
-	Status      string
-	StatusClass string
-	LatencyMs   int64
-	Protocol    string
+	Name          string
+	Description   string
+	Category      string
+	URL           string
+	Status        string
+	StatusClass   string
+	LatencyMs     int64
+	Protocol      string
+	ProtocolClass string
+	LastError     string
+	LastChecked   time.Time
 }
 
 // DashboardHandler holds compiled templates, services, and the health checker.
@@ -59,21 +63,28 @@ func (h *DashboardHandler) buildViewData() viewData {
 
 	views := make([]ServiceView, 0, len(h.services))
 	for _, svc := range h.services {
+		protoLabel := protocolLabel(svc.Type)
+
 		v := ServiceView{
-			Name:        svc.Name,
-			Description: svc.Description,
-			Category:    svc.Category,
-			URL:         svc.URL,
-			Status:      string(health.StatusUnknown),
-			StatusClass: "is-dark",
-			LatencyMs:   0,
-			Protocol:    protocolLabel(svc.Type),
+			Name:          svc.Name,
+			Description:   svc.Description,
+			Category:      svc.Category,
+			URL:           svc.URL,
+			Status:        string(health.StatusUnknown),
+			StatusClass:   "is-dark",
+			LatencyMs:     0,
+			Protocol:      protoLabel,
+			ProtocolClass: protocolClass(protoLabel),
+			LastError:     "",
+			LastChecked:   time.Time{},
 		}
 
 		if res, ok := results[svc.Name]; ok {
 			v.Status = string(res.Status)
 			v.LatencyMs = res.Latency.Milliseconds()
 			v.StatusClass = bulmaClassForStatus(res.Status)
+			v.LastChecked = res.CheckedAt
+			v.LastError = res.Error
 		}
 
 		views = append(views, v)
@@ -138,5 +149,21 @@ func protocolLabel(svcType string) string {
 			return ""
 		}
 		return strings.ToUpper(svcType)
+	}
+}
+
+// protocolClass maps a protocol label to a Bulma color class.
+func protocolClass(p string) string {
+	switch strings.ToUpper(p) {
+	case "HTTP":
+		return "is-info"
+	case "TCP":
+		return "is-warning"
+	case "DNS":
+		return "is-primary"
+	case "PING":
+		return "is-success"
+	default:
+		return "is-dark"
 	}
 }

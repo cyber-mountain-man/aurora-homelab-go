@@ -29,6 +29,18 @@
             </p>
             {{end}}
 
+            {{if ne .Status "UNKNOWN"}}
+            <p class="is-size-7 has-text-grey-light">
+                Last check: {{.LastChecked.Format "15:04:05"}}
+            </p>
+            {{end}}
+
+            {{if and (eq .Status "DOWN") .LastError}}
+            <p class="is-size-7 has-text-danger">
+                Reason: {{.LastError}}
+            </p>
+            {{end}}
+
             {{if .URL}}
             <a class="button is-small is-info is-light mt-2" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
                 Open
