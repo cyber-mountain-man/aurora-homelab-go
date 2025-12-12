@@ -61,6 +61,8 @@ type viewData struct {
 func (h *DashboardHandler) buildViewData() viewData {
 	results := h.checker.Snapshot()
 
+	staleAfter := 2 * time.Minute // STALE threshold
+
 	views := make([]ServiceView, 0, len(h.services))
 	for _, svc := range h.services {
 		protoLabel := protocolLabel(svc.Type)
@@ -85,6 +87,15 @@ func (h *DashboardHandler) buildViewData() viewData {
 			v.StatusClass = bulmaClassForStatus(res.Status)
 			v.LastChecked = res.CheckedAt
 			v.LastError = res.Error
+
+			// STALE detection: if we haven't checked recently, mark as stale.
+			if !res.CheckedAt.IsZero() && time.Since(res.CheckedAt) > staleAfter {
+				v.Status = string(health.StatusStale)
+				v.StatusClass = "is-warning"
+				if v.LastError == "" {
+					v.LastError = "stale: no recent health result"
+				}
+			}
 		}
 
 		views = append(views, v)
@@ -128,6 +139,8 @@ func bulmaClassForStatus(s health.Status) string {
 		return "is-success"
 	case health.StatusDown:
 		return "is-danger"
+	case health.StatusStale:
+		return "is-warning"
 	default:
 		return "is-dark"
 	}

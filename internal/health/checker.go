@@ -14,6 +14,7 @@ const (
 	StatusUnknown Status = "UNKNOWN"
 	StatusUp      Status = "UP"
 	StatusDown    Status = "DOWN"
+	StatusStale   Status = "STALE"
 )
 
 // Result holds the outcome of a single health check.
