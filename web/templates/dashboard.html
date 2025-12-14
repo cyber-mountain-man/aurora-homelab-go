@@ -41,21 +41,30 @@
             </p>
             {{end}}
 
-            {{if and (eq .Status "DOWN") .LastError}}
-            <p class="is-size-7 has-text-danger">
+            {{if .LastError}}
+            <p class="is-size-7 {{if eq .Status " DOWN"}}has-text-danger{{else}}has-text-warning{{end}}">
                 Reason: {{.LastError}}
             </p>
             {{end}}
 
-            {{if .URL}}
-            <a class="button is-small is-info is-light mt-2" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
-                Open
-            </a>
-            {{else}}
-            <button class="button is-small is-static mt-2">
-                No UI
-            </button>
-            {{end}}
+
+            <div class="buttons mt-2">
+                {{if .URL}}
+                <a class="button is-small is-info is-light" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
+                    Open
+                </a>
+                {{else}}
+                <button class="button is-small is-static">
+                    No UI
+                </button>
+                {{end}}
+
+                <button class="button is-small is-light" hx-post="/services/recheck?name={{urlquery .Name}}"
+                    hx-target="#service-grid" hx-swap="innerHTML">
+                    Test
+                </button>
+            </div>
+
 
             <div class="mt-2">
                 {{if .Category}}

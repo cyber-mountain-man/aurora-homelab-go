@@ -79,6 +79,21 @@ func (c *Checker) Start() {
 	}()
 }
 
+// CheckNow triggers an immediate health check for a single service by name.
+// It runs synchronously so the caller can return updated UI right away.
+func (c *Checker) CheckNow(name string) bool {
+	// Find the service
+	for _, svc := range c.services {
+		if svc.Name == name {
+			backend := c.getBackend(svc.Type)
+			res := backend.Check(svc)
+			c.storeResult(res)
+			return true
+		}
+	}
+	return false
+}
+
 // checkAll launches a check for each service.
 func (c *Checker) checkAll() {
 	for _, svc := range c.services {

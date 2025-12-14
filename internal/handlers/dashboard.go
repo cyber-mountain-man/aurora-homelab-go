@@ -229,3 +229,31 @@ func severityRank(v ServiceView) int {
 	// UP (or anything else) last
 	return 3
 }
+
+func (h *DashboardHandler) RecheckService(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		http.Error(w, "missing name", http.StatusBadRequest)
+		return
+	}
+
+	if ok := h.checker.CheckNow(name); !ok {
+		http.Error(w, "service not found", http.StatusNotFound)
+		return
+	}
+
+	// Return just the tiles so HTMX can replace the grid.
+	data := h.buildViewData()
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if err := h.tmpl.ExecuteTemplate(w, "dashboard", data); err != nil {
+		log.Printf("error rendering dashboard after recheck: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+}
