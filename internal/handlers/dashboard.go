@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -112,6 +113,28 @@ func (h *DashboardHandler) buildViewData() viewData {
 		views = append(views, v)
 	}
 
+	sort.SliceStable(views, func(i, j int) bool {
+		ri, rj := severityRank(views[i]), severityRank(views[j])
+		if ri != rj {
+			return ri < rj
+		}
+
+		// Secondary: Category (empty goes last)
+		ci, cj := views[i].Category, views[j].Category
+		if ci == "" && cj != "" {
+			return false
+		}
+		if ci != "" && cj == "" {
+			return true
+		}
+		if ci != cj {
+			return ci < cj
+		}
+
+		// Tertiary: Name
+		return views[i].Name < views[j].Name
+	})
+
 	return viewData{
 		Title:    "Aurora Homelab",
 		Services: views,
@@ -190,4 +213,19 @@ func protocolClass(p string) string {
 	default:
 		return "is-dark"
 	}
+}
+
+func severityRank(v ServiceView) int {
+	// Lower number = higher priority (shown first)
+	if v.Status == string(health.StatusDown) {
+		return 0
+	}
+	if v.IsStale {
+		return 1
+	}
+	if v.Status == string(health.StatusUnknown) {
+		return 2
+	}
+	// UP (or anything else) last
+	return 3
 }
