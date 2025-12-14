@@ -14,17 +14,24 @@ import (
 
 // ServiceView is what the template sees: service + health fields.
 type ServiceView struct {
-	Name          string
-	Description   string
-	Category      string
-	URL           string
-	Status        string
-	StatusClass   string
-	LatencyMs     int64
+	Name        string
+	Description string
+	Category    string
+	URL         string
+
+	Status      string
+	StatusClass string
+	LatencyMs   int64
+
 	Protocol      string
 	ProtocolClass string
-	LastError     string
-	LastChecked   time.Time
+
+	LastError   string
+	LastChecked time.Time
+
+	IsStale    bool
+	StaleClass string
+	StaleLabel string
 }
 
 // DashboardHandler holds compiled templates, services, and the health checker.
@@ -61,40 +68,44 @@ type viewData struct {
 func (h *DashboardHandler) buildViewData() viewData {
 	results := h.checker.Snapshot()
 
-	staleAfter := 2 * time.Minute // STALE threshold
+	staleAfter := 2*h.checker.Interval() + 10*time.Second
 
 	views := make([]ServiceView, 0, len(h.services))
 	for _, svc := range h.services {
 		protoLabel := protocolLabel(svc.Type)
 
 		v := ServiceView{
-			Name:          svc.Name,
-			Description:   svc.Description,
-			Category:      svc.Category,
-			URL:           svc.URL,
-			Status:        string(health.StatusUnknown),
-			StatusClass:   "is-dark",
-			LatencyMs:     0,
+			Name:        svc.Name,
+			Description: svc.Description,
+			Category:    svc.Category,
+			URL:         svc.URL,
+
+			Status:      string(health.StatusUnknown),
+			StatusClass: "is-dark",
+			LatencyMs:   0,
+
 			Protocol:      protoLabel,
 			ProtocolClass: protocolClass(protoLabel),
-			LastError:     "",
-			LastChecked:   time.Time{},
+
+			LastError:   "",
+			LastChecked: time.Time{},
+
+			IsStale:    false,
+			StaleClass: "",
+			StaleLabel: "",
 		}
 
 		if res, ok := results[svc.Name]; ok {
 			v.Status = string(res.Status)
-			v.LatencyMs = res.Latency.Milliseconds()
 			v.StatusClass = bulmaClassForStatus(res.Status)
+			v.LatencyMs = res.Latency.Milliseconds()
 			v.LastChecked = res.CheckedAt
 			v.LastError = res.Error
 
-			// STALE detection: if we haven't checked recently, mark as stale.
 			if !res.CheckedAt.IsZero() && time.Since(res.CheckedAt) > staleAfter {
-				v.Status = string(health.StatusStale)
-				v.StatusClass = "is-warning"
-				if v.LastError == "" {
-					v.LastError = "stale: no recent health result"
-				}
+				v.IsStale = true
+				v.StaleClass = "is-warning"
+				v.StaleLabel = "STALE"
 			}
 		}
 

@@ -12,6 +12,12 @@
                     <span class="tag {{.StatusClass}}">
                         {{.Status}}
                     </span>
+
+                    {{if .IsStale}}
+                    <span class="tag {{.StaleClass}} ml-2">
+                        {{.StaleLabel}}
+                    </span>
+                    {{end}}
                 </div>
             </div>
 

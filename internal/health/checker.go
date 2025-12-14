@@ -124,3 +124,8 @@ func (c *Checker) Snapshot() map[string]Result {
 	}
 	return out
 }
+
+// interval returns the health check interval.
+func (c *Checker) Interval() time.Duration {
+	return c.interval
+}

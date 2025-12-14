@@ -1,9 +1,13 @@
+//lint:file-ignore SA1019 temporary for MVP; replace ICMP ping implementation later
 package health
 
 import (
 	"time"
 
 	"github.com/cyber-mountain-man/aurora-homelab-go/internal/models"
+
+	// NOTE: github.com/go-ping/ping is deprecated (SA1019). Kept it temporarily for MVP ICMP support.
+	// TODO(aurora): Replace ICMP ping with TCP-based reachability (no raw socket/capabilities) or x/net/icmp.
 	ping "github.com/go-ping/ping"
 )
 
