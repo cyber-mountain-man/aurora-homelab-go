@@ -7,3 +7,39 @@ body {
     border-radius: 1rem;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
+
+.htmx-indicator {
+    display: none;
+}
+
+.htmx-request .htmx-indicator {
+    display: inline;
+}
+
+/* HTMX indicator behavior */
+.htmx-indicator {
+    display: none;
+}
+
+.htmx-request .htmx-indicator {
+    display: inline-block;
+}
+
+/* Flash animation when a tile is manually rechecked */
+@keyframes auroraFlash {
+    0% {
+        transform: scale(1);
+    }
+
+    25% {
+        transform: scale(1.01);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.aurora-flash {
+    animation: auroraFlash 800ms ease-out;
+}

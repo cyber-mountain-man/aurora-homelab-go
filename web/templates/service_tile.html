@@ -1,0 +1,90 @@
+{{define "service_tile"}}
+<div class="box aurora-tile {{if .JustChecked}}aurora-flash{{end}}" id="svc-{{safeid .Name}}">
+    <div class="level is-mobile mb-2">
+        <div class="level-left">
+            <p class="title is-5 mb-0">{{.Name}}</p>
+        </div>
+        <div class="level-right">
+            <span class="tag {{.StatusClass}}">
+                {{.Status}}
+            </span>
+
+            {{if .IsStale}}
+            <span class="tag {{.StaleClass}} ml-2">
+                {{.StaleLabel}}
+            </span>
+            {{end}}
+        </div>
+    </div>
+
+    {{if .Description}}
+    <p class="subtitle is-6">{{.Description}}</p>
+    {{else}}
+    <p class="subtitle is-6 has-text-grey">
+        {{if .Category}}{{.Category}}{{else}}Service{{end}}
+    </p>
+    {{end}}
+
+    {{if gt .LatencyMs 0}}
+    <p class="is-size-7 has-text-grey-light">
+        Latency: {{.LatencyMs}} ms
+    </p>
+    {{end}}
+
+    {{if not .LastChecked.IsZero}}
+    <p class="is-size-7 has-text-grey-light">
+        Last check: {{.LastChecked.Format "15:04:05.000"}}
+    </p>
+    {{end}}
+
+    {{if .UpstreamIssue}}
+    <p class="is-size-7 has-text-warning">
+        {{.UpstreamNote}}
+    </p>
+    {{end}}
+
+    {{if .ReasonLabel}}
+    <span class="tag {{.ReasonColor}} is-light is-size-7"> {{.ReasonLabel}} </span>
+    {{end}}
+
+    {{if .LastError}}
+    <p class="is-size-7 {{if eq .Status " DOWN"}}has-text-danger{{else}}has-text-warning{{end}}">
+        Reason: {{.LastError}}
+    </p>
+    {{end}}
+
+
+
+    <div class="buttons mt-2">
+        {{if .URL}}
+        <a class="button is-small is-info is-light" href="{{.URL}}" target="_blank" rel="noopener noreferrer">
+            Open
+        </a>
+        {{else}}
+        <button class="button is-small is-static">
+            No UI
+        </button>
+        {{end}}
+
+        <button class="button is-small is-light" hx-post="/services/recheck?name={{urlquery .Name}}"
+            hx-target="#svc-{{safeid .Name}}" hx-swap="outerHTML" hx-indicator="#ind-{{safeid .Name}}"
+            hx-disabled-elt="this" hx-sync="#service-grid:abort">
+            Test
+        </button>
+
+        <span id="ind-{{safeid .Name}}" class="is-size-7 has-text-grey-light ml-2 htmx-indicator">
+            Checking…
+        </span>
+    </div>
+
+    <div class="mt-2">
+        {{if .Category}}
+        <span class="tag is-light">{{.Category}}</span>
+        {{end}}
+
+        {{if .Protocol}}
+        <span class="tag is-link is-light">{{.Protocol}}</span>
+        {{end}}
+    </div>
+</div>
+{{end}}

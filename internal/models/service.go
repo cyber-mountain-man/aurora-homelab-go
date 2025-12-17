@@ -23,4 +23,6 @@ type Service struct {
 	Icon        string `yaml:"icon,omitempty"`
 	Category    string `yaml:"category,omitempty"`
 	Description string `yaml:"description,omitempty"`
+
+	DependsOn []string `yaml:"depends_on,omitempty"`
 }

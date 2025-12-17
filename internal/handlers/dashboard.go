@@ -33,6 +33,18 @@ type ServiceView struct {
 	IsStale    bool
 	StaleClass string
 	StaleLabel string
+
+	JustChecked bool
+
+	// dependency correlation
+	UpstreamIssue bool
+	UpstreamNote  string
+
+	// semantic reason classification
+	ReasonClass string // e.g. "TIMEOUT", "DNS", "CONN", "PERMISSION"
+	ReasonLabel string // short human label
+	ReasonColor string // Bulma tag class, e.g. "is-warning"
+
 }
 
 // DashboardHandler holds compiled templates, services, and the health checker.
@@ -46,8 +58,13 @@ type DashboardHandler struct {
 func NewDashboardHandler(templatesDir string, services []models.Service, checker *health.Checker) (*DashboardHandler, error) {
 	layout := filepath.Join(templatesDir, "layout.html")
 	dashboard := filepath.Join(templatesDir, "dashboard.html")
+	serviceTile := filepath.Join(templatesDir, "service_tile.html")
 
-	tmpl, err := template.ParseFiles(layout, dashboard)
+	tmpl, err := template.New("layout.html").
+		Funcs(template.FuncMap{
+			"safeid": safeID,
+		}).
+		ParseFiles(layout, dashboard, serviceTile)
 	if err != nil {
 		return nil, err
 	}
@@ -68,10 +85,12 @@ type viewData struct {
 // buildViewData creates the view model from services + health results.
 func (h *DashboardHandler) buildViewData() viewData {
 	results := h.checker.Snapshot()
-
 	staleAfter := 2*h.checker.Interval() + 10*time.Second
 
 	views := make([]ServiceView, 0, len(h.services))
+	indexByName := make(map[string]int, len(h.services))
+
+	// Pass 1: build tiles from results
 	for _, svc := range h.services {
 		protoLabel := protocolLabel(svc.Type)
 
@@ -94,23 +113,102 @@ func (h *DashboardHandler) buildViewData() viewData {
 			IsStale:    false,
 			StaleClass: "",
 			StaleLabel: "",
+
+			UpstreamIssue: false,
+			UpstreamNote:  "",
 		}
 
 		if res, ok := results[svc.Name]; ok {
-			v.Status = string(res.Status)
+			v.Status = strings.TrimSpace(string(res.Status))
 			v.StatusClass = bulmaClassForStatus(res.Status)
 			v.LatencyMs = res.Latency.Milliseconds()
 			v.LastChecked = res.CheckedAt
 			v.LastError = res.Error
 
+			// Semantic reason classification for errors
+			if v.LastError != "" {
+				rc := health.ClassifyError(v.LastError)
+				label, color := health.ReasonPresentation(rc)
+				v.ReasonClass = string(rc)
+				v.ReasonLabel = label
+				v.ReasonColor = color
+			}
+
+			// Stale detection
 			if !res.CheckedAt.IsZero() && time.Since(res.CheckedAt) > staleAfter {
 				v.IsStale = true
 				v.StaleClass = "is-warning"
 				v.StaleLabel = "STALE"
+
+				// If stale but no error, attach a default "reason"
+				if v.LastError == "" {
+					v.LastError = "stale: no recent health result"
+
+					rc := health.ReasonTimeout // or create ReasonStale later
+					label, color := health.ReasonPresentation(rc)
+					v.ReasonClass = string(rc)
+					v.ReasonLabel = label
+					v.ReasonColor = color
+				}
 			}
 		}
 
 		views = append(views, v)
+		indexByName[v.Name] = len(views) - 1
+	}
+
+	// Pass 2: dependency correlation (depends_on)
+	for i, svc := range h.services {
+		if len(svc.DependsOn) == 0 {
+			continue
+		}
+
+		worstDepName := ""
+		worstDepStatus := ""
+		worstRank := 999
+
+		for _, depName := range svc.DependsOn {
+			depIdx, ok := indexByName[depName]
+			if !ok {
+				// dependency name not found in config
+				if worstRank > 3 {
+					worstRank = 3
+					worstDepName = depName
+					worstDepStatus = "MISSING"
+				}
+				continue
+			}
+
+			dep := views[depIdx]
+
+			// rank: DOWN(0), STALE(1), UNKNOWN(2), UP(3)
+			r := 3
+			if dep.Status == string(health.StatusDown) {
+				r = 0
+			} else if dep.IsStale {
+				r = 1
+			} else if dep.Status == string(health.StatusUnknown) {
+				r = 2
+			}
+
+			if r < worstRank {
+				worstRank = r
+				worstDepName = dep.Name
+				if dep.IsStale {
+					worstDepStatus = "STALE"
+				} else {
+					worstDepStatus = dep.Status
+				}
+			}
+		}
+
+		// Only show upstream hint when it helps (service not clearly UP)
+		if worstDepName != "" && worstRank <= 2 {
+			if views[i].Status != string(health.StatusUp) || views[i].IsStale {
+				views[i].UpstreamIssue = true
+				views[i].UpstreamNote = "Upstream: " + worstDepName + " is " + worstDepStatus
+			}
+		}
 	}
 
 	sort.SliceStable(views, func(i, j int) bool {
@@ -247,13 +345,44 @@ func (h *DashboardHandler) RecheckService(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Return just the tiles so HTMX can replace the grid.
 	data := h.buildViewData()
+
+	var tile *ServiceView
+	for i := range data.Services {
+		if data.Services[i].Name == name {
+			tile = &data.Services[i]
+			break
+		}
+	}
+	if tile == nil {
+		http.Error(w, "service not found", http.StatusNotFound)
+		return
+	}
+
+	tile.JustChecked = true
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	if err := h.tmpl.ExecuteTemplate(w, "dashboard", data); err != nil {
-		log.Printf("error rendering dashboard after recheck: %v", err)
+	if err := h.tmpl.ExecuteTemplate(w, "service_tile", tile); err != nil {
+		log.Printf("error rendering service tile: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+}
+
+func safeID(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('-') // replace spaces/symbols with -
+		}
+	}
+	return b.String()
 }
