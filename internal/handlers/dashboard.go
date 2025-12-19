@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,12 +60,13 @@ func NewDashboardHandler(templatesDir string, services []models.Service, checker
 	layout := filepath.Join(templatesDir, "layout.html")
 	dashboard := filepath.Join(templatesDir, "dashboard.html")
 	serviceTile := filepath.Join(templatesDir, "service_tile.html")
+	summaryBanner := filepath.Join(templatesDir, "summary_banner.html")
 
 	tmpl, err := template.New("layout.html").
 		Funcs(template.FuncMap{
 			"safeid": safeID,
 		}).
-		ParseFiles(layout, dashboard, serviceTile)
+		ParseFiles(layout, dashboard, serviceTile, summaryBanner)
 	if err != nil {
 		return nil, err
 	}
@@ -76,10 +78,22 @@ func NewDashboardHandler(templatesDir string, services []models.Service, checker
 	}, nil
 }
 
+type HealthSummary struct {
+	SeverityClass  string // Bulma class: is-success / is-warning / is-danger / is-dark
+	Title          string // Short headline
+	Message        string // 1–2 lines of detail
+	DownCount      int
+	StaleCount     int
+	UnknownCount   int
+	TopReasonLabel string // e.g., "DNS", "Timeout"
+	TopReasonCount int
+}
+
 // viewData is what we pass into the templates.
 type viewData struct {
 	Title    string
 	Services []ServiceView
+	Summary  HealthSummary
 }
 
 // buildViewData creates the view model from services + health results.
@@ -236,6 +250,7 @@ func (h *DashboardHandler) buildViewData() viewData {
 	return viewData{
 		Title:    "Aurora Homelab",
 		Services: views,
+		Summary:  buildSummary(views),
 	}
 }
 
@@ -386,3 +401,70 @@ func safeID(s string) string {
 	}
 	return b.String()
 }
+
+// Helper to compute Health Summary
+
+func buildSummary(views []ServiceView) HealthSummary {
+	s := HealthSummary{}
+
+	reasonCounts := make(map[string]int)
+
+	for _, v := range views {
+		switch v.Status {
+		case string(health.StatusDown):
+			s.DownCount++
+		case string(health.StatusUnknown):
+			s.UnknownCount++
+		}
+		if v.IsStale {
+			s.StaleCount++
+		}
+
+		// Only count a "reason" if we actually have one (usually DOWN/STALE)
+		if v.ReasonLabel != "" {
+			reasonCounts[v.ReasonLabel]++
+		}
+	}
+
+	// Find top reason
+	for label, cnt := range reasonCounts {
+		if cnt > s.TopReasonCount {
+			s.TopReasonCount = cnt
+			s.TopReasonLabel = label
+		}
+	}
+
+	// Decide banner severity + message (simple but effective rules)
+	if s.DownCount > 0 {
+		s.SeverityClass = "is-danger"
+		s.Title = "Service outages detected"
+		if s.TopReasonCount > 0 {
+			s.Message = "Down: " + itoa(s.DownCount) + " • Top issue: " + s.TopReasonLabel + " (" + itoa(s.TopReasonCount) + ")"
+		} else {
+			s.Message = "Down: " + itoa(s.DownCount)
+		}
+		return s
+	}
+
+	if s.StaleCount > 0 {
+		s.SeverityClass = "is-warning"
+		s.Title = "Stale checks detected"
+		s.Message = "Stale: " + itoa(s.StaleCount) + " • Checks may not be updating"
+		return s
+	}
+
+	if s.UnknownCount > 0 {
+		s.SeverityClass = "is-dark"
+		s.Title = "Some services are unknown"
+		s.Message = "Unknown: " + itoa(s.UnknownCount) + " • Waiting for first successful check"
+		return s
+	}
+
+	s.SeverityClass = "is-success"
+	s.Title = "All systems nominal"
+	s.Message = "Everything is UP"
+	return s
+}
+
+// tiny helper to avoid fmt.Sprintf noise
+func itoa(n int) string { return strconv.Itoa(n) }

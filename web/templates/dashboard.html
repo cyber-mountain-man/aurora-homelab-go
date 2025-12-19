@@ -1,5 +1,6 @@
 {{define "dashboard"}}
 {{if .Services}}
+{{template "summary_banner" .}}
 <div class="columns is-multiline">
     {{range .Services}}
     <div class="column is-one-quarter">
