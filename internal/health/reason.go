@@ -13,6 +13,7 @@ const (
 	ReasonTLS        ReasonClass = "TLS"
 	ReasonHTTP       ReasonClass = "HTTP"
 	ReasonUnknown    ReasonClass = "UNKNOWN"
+	ReasonOther      ReasonClass = "OTHER"
 )
 
 func ClassifyError(err string) ReasonClass {
@@ -33,7 +34,6 @@ func ClassifyError(err string) ReasonClass {
 		return ReasonDNS
 
 	case strings.Contains(e, "connection refused"),
-		strings.Contains(e, "connect: connection refused"),
 		strings.Contains(e, "network is unreachable"),
 		strings.Contains(e, "no route to host"),
 		strings.Contains(e, "connection reset"),
@@ -49,11 +49,12 @@ func ClassifyError(err string) ReasonClass {
 		return ReasonTLS
 
 	case strings.Contains(e, "status code"),
-		strings.Contains(e, "http"):
+		strings.Contains(e, "unexpected status"),
+		strings.Contains(e, "http response"):
 		return ReasonHTTP
 
 	default:
-		return ReasonUnknown
+		return ReasonOther
 	}
 }
 
@@ -73,6 +74,8 @@ func ReasonPresentation(rc ReasonClass) (label string, bulmaColor string) {
 		return "HTTP", "is-warning"
 	case ReasonUnknown:
 		return "Unknown", "is-warning"
+	case ReasonOther:
+		return "Other", "is-warning"
 	default:
 		return "", ""
 	}

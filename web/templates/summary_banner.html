@@ -1,3 +1,26 @@
+{{define "dashboard"}}
+
+{{template "summary_banner" .}}
+
+{{if .Services}}
+<div class="columns is-multiline">
+    {{range .Services}}
+    <div class="column is-one-quarter">
+        {{template "service_tile" .}}
+    </div>
+    {{end}}
+</div>
+{{else}}
+<div class="notification is-warning">
+    <strong>No services configured.</strong><br />
+    Create a <code>config.yaml</code> in the project root, based on
+    <code>config.example.yaml</code>, to see your homelab services here.
+</div>
+{{end}}
+
+{{end}}
+
+
 {{define "summary_banner"}}
 <article class="message {{.Summary.SeverityClass}}">
     <div class="message-body">

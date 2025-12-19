@@ -45,7 +45,6 @@ type ServiceView struct {
 	ReasonClass string // e.g. "TIMEOUT", "DNS", "CONN", "PERMISSION"
 	ReasonLabel string // short human label
 	ReasonColor string // Bulma tag class, e.g. "is-warning"
-
 }
 
 // DashboardHandler holds compiled templates, services, and the health checker.
@@ -426,9 +425,10 @@ func buildSummary(views []ServiceView) HealthSummary {
 		}
 	}
 
-	// Find top reason
+	// Find top reason (deterministic tie-break: alphabetical label)
 	for label, cnt := range reasonCounts {
-		if cnt > s.TopReasonCount {
+		if cnt > s.TopReasonCount ||
+			(cnt == s.TopReasonCount && (s.TopReasonLabel == "" || label < s.TopReasonLabel)) {
 			s.TopReasonCount = cnt
 			s.TopReasonLabel = label
 		}
